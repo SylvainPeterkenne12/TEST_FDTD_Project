@@ -167,6 +167,8 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 	freq_max = max(100.0, f_signal * 4.0, f_sample * 4.0)
 	s_fsig = Slider(ax_fsig, 'f_signal (Hz)', 0.0, freq_max, valinit=f_signal)
 	s_fsam = Slider(ax_fsam, 'f_sample (Hz)', 0.1, freq_max, valinit=f_sample)
+	nyquist_line = ax_fsam.axvline(2.0 * f_signal, color='green', linewidth=3, alpha=0.85)
+	ax_fsam.text(0.99, 0.75, 'Nyquist', color='green', ha='right', va='center', transform=ax_fsam.transAxes, fontsize=8)
 	button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
 	status_text = fig.text(0.10, 0.02, '', fontsize=9)
 
@@ -201,8 +203,10 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 		plot_ax.set_xlim(0, t_total)
 		plot_ax.set_ylim(-1.2, 1.2)
 		plot_ax.legend(loc='upper right')
+		nyquist_rate = 2.0 * f_sig
+		nyquist_line.set_xdata([nyquist_rate, nyquist_rate])
 		status_text.set_text(
-			f'Fs = {f_sam:.3f} Hz | Nyquist = {f_sam / 2:.3f} Hz | '
+			f'Fs = {f_sam:.3f} Hz | Nyquist min = {nyquist_rate:.3f} Hz | '
 			f'Fréq vraie = {f_sig:.3f} Hz | Alias = {ali_freq:.3f} Hz'
 		)
 		fig.canvas.draw_idle()

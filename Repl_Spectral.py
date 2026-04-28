@@ -157,43 +157,24 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 	"""Ouvre une fenêtre matplotlib avec deux curseurs pour ajuster
 	`f_signal` et `f_sample` en temps réel.
 	"""
-	# préparation des données initiales
-	t_cont, y_cont = generate_continuous_signal(f_signal, t_total, resolution=2000)
-	t_samp, y_samp = sample_signal(f_signal, f_sample, t_total)
-
-	fig, ax = plt.subplots(figsize=(10, 6))
-	plt.subplots_adjust(left=0.1, bottom=0.25)
-
-	# éléments initiaux
-	cont_line, = ax.plot(t_cont, y_cont, color='tab:blue', alpha=0.6, label=f'Vrai signal ({f_signal} Hz)')
-	stem = ax.stem(t_samp, y_samp, linefmt='C1--', markerfmt='C1o', basefmt='k-')
-	markerline = stem[0]
-	ali_line, = ax.plot([], [], color='tab:red', alpha=0.8, label='Signal replié')
-
-	ax.set_title('Démonstration du repliement spectral (Aliasing)')
-	ax.set_xlabel('Temps (secondes)')
-	ax.set_ylabel('Amplitude')
-	ax.grid(True)
-	ax.legend()
-
+	fig = plt.figure(figsize=(10, 6))
+	plot_ax = fig.add_axes([0.10, 0.28, 0.85, 0.66])
 	axcolor = 'lightgoldenrodyellow'
-	ax_fsig = plt.axes([0.1, 0.12, 0.8, 0.03], facecolor=axcolor)
-	ax_fsam = plt.axes([0.1, 0.07, 0.8, 0.03], facecolor=axcolor)
+	ax_fsig = fig.add_axes([0.10, 0.15, 0.75, 0.03], facecolor=axcolor)
+	ax_fsam = fig.add_axes([0.10, 0.09, 0.75, 0.03], facecolor=axcolor)
+	resetax = fig.add_axes([0.87, 0.08, 0.08, 0.08])
 
-	s_fsig = Slider(ax_fsig, 'f_signal (Hz)', 0.0, max(1.0, f_sample * 4), valinit=f_signal)
-	s_fsam = Slider(ax_fsam, 'f_sample (Hz)', 0.1, max(1.0, f_sample * 4), valinit=f_sample)
-
-	resetax = plt.axes([0.8, 0.01, 0.1, 0.04])
+	freq_max = max(100.0, f_signal * 4.0, f_sample * 4.0)
+	s_fsig = Slider(ax_fsig, 'f_signal (Hz)', 0.0, freq_max, valinit=f_signal)
+	s_fsam = Slider(ax_fsam, 'f_sample (Hz)', 0.1, freq_max, valinit=f_sample)
 	button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
+	status_text = fig.text(0.10, 0.02, '', fontsize=9)
 
 	def redraw(f_sig: float, f_sam: float) -> None:
-		nonlocal stem
-		# recalculer
 		t_cont, y_cont = generate_continuous_signal(f_sig, t_total, resolution=2000)
 		t_samp, y_samp = sample_signal(f_sig, f_sam, t_total)
 		ali_freq = aliased_frequency(f_sig, f_sam)
 
-		# estimer phase/amplitude pour aligner
 		w = 2 * np.pi * ali_freq
 		if ali_freq == 0:
 			amplitude = 0.0
@@ -208,26 +189,22 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 		t_ali = np.linspace(0, t_total, 2000)
 		y_ali = amplitude * np.sin(w * t_ali + phi)
 
-		# mettre à jour les tracés
-		cont_line.set_data(t_cont, y_cont)
-		# mettre à jour stem: re-créer pour simplicité
-		for coll in stem[1:]:
-			try:
-				coll.remove()
-			except Exception:
-				pass
-		new_stem = ax.stem(t_samp, y_samp, linefmt='C1--', markerfmt='C1o', basefmt='k-')
-		# remplacer les références
-		stem = new_stem
-		ali_line.set_data(t_ali, y_ali)
-
-		ax.relim()
-		ax.autoscale_view()
-		info_text = f"Fs = {f_sam:.3f} Hz, Nyquist = {f_sam/2:.3f} Hz\nFréq vraie = {f_sig:.3f} Hz, Aliased = {ali_freq:.3f} Hz"
-		# retirer ancien texte si existe
-		for txt in ax.texts:
-			txt.remove()
-		ax.text(0.01, 0.01, info_text, fontsize=9, transform=fig.transFigure)
+		plot_ax.clear()
+		plot_ax.plot(t_cont, y_cont, color='tab:blue', alpha=0.6, label=f'Vrai signal ({f_sig:.3f} Hz)')
+		stem = plot_ax.stem(t_samp, y_samp, linefmt='C1--', markerfmt='C1o', basefmt='k-')
+		plt.setp(stem.markerline, markersize=6)
+		plot_ax.plot(t_ali, y_ali, color='tab:red', alpha=0.85, label=f'Signal replié ({ali_freq:.3f} Hz)')
+		plot_ax.set_title('Démonstration du repliement spectral (Aliasing)')
+		plot_ax.set_xlabel('Temps (secondes)')
+		plot_ax.set_ylabel('Amplitude')
+		plot_ax.grid(True)
+		plot_ax.set_xlim(0, t_total)
+		plot_ax.set_ylim(-1.2, 1.2)
+		plot_ax.legend(loc='upper right')
+		status_text.set_text(
+			f'Fs = {f_sam:.3f} Hz | Nyquist = {f_sam / 2:.3f} Hz | '
+			f'Fréq vraie = {f_sig:.3f} Hz | Alias = {ali_freq:.3f} Hz'
+		)
 		fig.canvas.draw_idle()
 
 	def update(val):
@@ -241,7 +218,6 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 	s_fsam.on_changed(update)
 	button.on_clicked(reset)
 
-	# trace initial
 	redraw(f_signal, f_sample)
 	plt.show()
 
@@ -249,8 +225,16 @@ def interactive_sliders(f_signal: float = 8.0, f_sample: float = 10.0, t_total: 
 def main() -> None:
 	args = parse_args()
 
-	if args.interactive or (not any([args.f_signal, args.f_sample, args.t_total, args.save]) and sys.stdin.isatty()):
+	if args.interactive:
 		f_signal, f_sample, t_total, save = prompt_parameters()
+		plot_aliasing(f_signal, f_sample, t_total, save_path=save)
+	elif args.sliders or (
+		args.f_signal is None and args.f_sample is None and args.t_total is None and args.save is None and sys.stdin.isatty()
+	):
+		f_signal = args.f_signal if args.f_signal is not None else 8.0
+		f_sample = args.f_sample if args.f_sample is not None else 10.0
+		t_total = args.t_total if args.t_total is not None else 1.0
+		interactive_sliders(f_signal, f_sample, t_total)
 	else:
 		# Utiliser les valeurs fournies ou défauts
 		f_signal = args.f_signal if args.f_signal is not None else 8.0
@@ -258,10 +242,10 @@ def main() -> None:
 		t_total = args.t_total if args.t_total is not None else 1.0
 		save = args.save
 
-	try:
-		plot_aliasing(f_signal, f_sample, t_total, save_path=save)
-	except Exception as e:
-		print(f"Erreur: {e}")
+		try:
+			plot_aliasing(f_signal, f_sample, t_total, save_path=save)
+		except Exception as e:
+			print(f"Erreur: {e}")
 
 
 if __name__ == '__main__':
